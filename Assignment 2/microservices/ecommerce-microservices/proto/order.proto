@@ -1,0 +1,52 @@
+syntax = "proto3";
+
+package order;
+
+option go_package = "ecommerce-microservices/proto";
+
+service OrderService {
+  rpc CreateOrder (CreateOrderRequest) returns (Order);
+  rpc GetOrder (GetOrderRequest) returns (Order);
+  rpc ListOrders (ListOrdersRequest) returns (ListOrdersResponse);
+  rpc UpdateOrder (UpdateOrderRequest) returns (Order);
+  rpc DeleteOrder (DeleteOrderRequest) returns (DeleteOrderResponse);
+}
+
+message Order {
+  string order_id = 1;
+  string product_id = 2;
+  string product_name = 3;
+  int32 quantity = 4;
+  double unit_price = 5;
+  double total_price = 6;
+}
+
+message CreateOrderRequest {
+  string order_id = 1;
+  string product_id = 2;
+  int32 quantity = 3;
+}
+
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+message ListOrdersRequest {}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+}
+
+message UpdateOrderRequest {
+  string order_id = 1;
+  string product_id = 2;
+  int32 quantity = 3;
+}
+
+message DeleteOrderRequest {
+  string order_id = 1;
+}
+
+message DeleteOrderResponse {
+  string message = 1;
+}

@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package product;
+
+option go_package = "ecommerce-microservices/proto";
+
+service ProductService {
+  rpc CreateProduct (CreateProductRequest) returns (Product);
+  rpc GetProduct (GetProductRequest) returns (Product);
+  rpc ListProducts (ListProductsRequest) returns (ListProductsResponse);
+  rpc UpdateProduct (UpdateProductRequest) returns (Product);
+  rpc DeleteProduct (DeleteProductRequest) returns (DeleteProductResponse);
+}
+
+message Product {
+  string product_id = 1;
+  string name = 2;
+  double price = 3;
+}
+
+message CreateProductRequest {
+  string product_id = 1;
+  string name = 2;
+  double price = 3;
+}
+
+message GetProductRequest {
+  string product_id = 1;
+}
+
+message ListProductsRequest {}
+
+message ListProductsResponse {
+  repeated Product products = 1;
+}
+
+message UpdateProductRequest {
+  string product_id = 1;
+  string name = 2;
+  double price = 3;
+}
+
+message DeleteProductRequest {
+  string product_id = 1;
+}
+
+message DeleteProductResponse {
+  string message = 1;
+}

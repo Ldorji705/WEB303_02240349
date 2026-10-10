@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package product;
+
+option go_package = "ecommerce-microservices/proto";
+
+service ProductService {
+    rpc GetProduct (GetProductRequest) returns (Product);
+}
+
+message GetProductRequest {
+    string product_id = 1;
+}
+
+message Product {
+    string product_id = 1;
+    string name = 2;
+    double price = 3;
+}

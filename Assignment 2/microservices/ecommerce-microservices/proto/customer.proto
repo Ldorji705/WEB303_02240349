@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package customer;
+
+option go_package = "ecommerce-microservices/proto";
+
+service CustomerService {
+    rpc GetCustomer (GetCustomerRequest) returns (Customer);
+}
+
+message GetCustomerRequest {
+    string customer_id = 1;
+}
+
+message Customer {
+    string customer_id = 1;
+    string name = 2;
+    string email = 3;
+}

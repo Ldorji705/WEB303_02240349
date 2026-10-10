@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Resilience Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0A0B0D;
+    --surface: #15171C;
+    --surface-2: #1B1E24;
+    --border: #262A31;
+    --border-strong: #34393F;
+    --text-primary: #EDEEF0;
+    --text-secondary: #8D94A0;
+    --text-tertiary: #565C66;
+    --accent: #5B8DEF;
+    --accent-hover: #77A0F3;
+    --accent-soft: rgba(91,141,239,0.14);
+    --closed: #34D399;
+    --closed-bg: rgba(52,211,153,0.10);
+    --closed-border: rgba(52,211,153,0.4);
+    --open: #FB6262;
+    --open-bg: rgba(251,98,98,0.10);
+    --open-border: rgba(251,98,98,0.45);
+    --halfopen: #F5A524;
+    --halfopen-bg: rgba(245,165,36,0.10);
+    --halfopen-border: rgba(245,165,36,0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, sans-serif;
+    min-height: 100vh;
+  }
+
+  .shell { max-width: 780px; margin: 0 auto; padding: 0 20px 80px; }
+
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 18px 0; border-bottom: 1px solid var(--border); margin-bottom: 30px;
+  }
+  .brand { display: flex; align-items: center; gap: 9px; }
+  .brand-mark {
+    width: 20px; height: 20px; background: var(--accent); border-radius: 5px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 11px; color: #0A0B0D;
+  }
+  .brand-name {
+    font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; font-weight: 600;
+    letter-spacing: 0.06em; color: var(--text-primary);
+  }
+  .topbar-right { display: flex; align-items: center; gap: 14px; }
+  .env-tag {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; font-weight: 600; letter-spacing: 0.05em;
+    color: var(--text-tertiary); border: 1px solid var(--border-strong); border-radius: 5px; padding: 3px 8px;
+  }
+  .clock { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-secondary); }
+
+  .page-header { margin-bottom: 26px; }
+  h1 {
+    font-family: 'Space Grotesk', sans-serif; font-size: 26px; font-weight: 700;
+    margin: 0 0 6px; letter-spacing: -0.01em;
+  }
+  .subtitle { color: var(--text-secondary); font-size: 14px; margin: 0; max-width: 520px; line-height: 1.5; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.35); margin-bottom: 18px;
+  }
+  .card-label {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-tertiary); margin-bottom: 16px;
+  }
+
+  /* ---- Topology diagram ---- */
+  .topology {
+    position: relative;
+    height: 360px;
+  }
+
+  .topo-svg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .topo-line {
+    stroke: var(--border-strong);
+    stroke-width: 1.5;
+    transition: stroke 0.25s ease;
+  }
+  .topo-line.active {
+    stroke: var(--accent);
+    stroke-dasharray: 5 4;
+    animation: dash 0.55s linear infinite;
+  }
+  .topo-line.result-ok { stroke: var(--closed); }
+  .topo-line.result-fail { stroke: var(--open); }
+  @keyframes dash { to { stroke-dashoffset: -18; } }
+
+  .topo-gw {
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex; flex-direction: column; align-items: center;
+    width: 90px;
+    z-index: 2;
+  }
+
+  .topo-right {
+    position: absolute;
+    right: 8px;
+    top: 0;
+    bottom: 0;
+    width: 110px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    z-index: 2;
+  }
+
+  .topo-node-wrap {
+    display: flex; flex-direction: column; align-items: center;
+  }
+
+  .topo-node {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    background: var(--surface-2);
+    border: 2px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.03em;
+    color: var(--text-secondary);
+    transition: border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+  }
+
+  .topo-gw .topo-node {
+    width: 60px; height: 60px;
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
+  }
+
+  .topo-gw.active .topo-node { box-shadow: 0 0 0 6px var(--accent-soft); }
+
+  .topo-node-wrap.state-closed .topo-node { border-color: var(--closed-border); }
+  .topo-node-wrap.state-open .topo-node { border-color: var(--open); box-shadow: 0 0 0 5px var(--open-bg); animation: alarm 1.3s ease-in-out infinite; }
+  .topo-node-wrap.state-halfopen .topo-node { border-color: var(--halfopen-border); }
+  .topo-node-wrap.flash-ok .topo-node { border-color: var(--closed); box-shadow: 0 0 0 6px var(--closed-bg); }
+  .topo-node-wrap.flash-fail .topo-node { border-color: var(--open); box-shadow: 0 0 0 6px var(--open-bg); }
+
+  @keyframes alarm { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+  .topo-label {
+    margin-top: 8px; text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    min-height: 30px;
+  }
+  .topo-label .name { font-size: 11px; font-weight: 600; color: var(--text-primary); white-space: nowrap; }
+  .topo-label .state { font-size: 9.5px; color: var(--text-tertiary); margin-top: 2px; white-space: nowrap; }
+  .topo-label .state.warn { color: var(--halfopen); }
+  .topo-label .state.bad { color: var(--open); }
+  .topo-label .state.good { color: var(--closed); }
+
+  @media (max-width: 480px) {
+    .topology { height: 320px; }
+    .topo-node { width: 44px; height: 44px; }
+    .topo-gw .topo-node { width: 50px; height: 50px; }
+    .topo-right { width: 90px; }
+  }
+
+  /* ---- Console form ---- */
+  .tabs {
+    display: flex; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 9px; padding: 3px; margin-bottom: 20px;
+  }
+  .tab {
+    flex: 1; text-align: center; padding: 8px 6px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px; font-weight: 600; color: var(--text-secondary);
+    border-radius: 6px; cursor: pointer; transition: all 0.15s ease; user-select: none;
+  }
+  .tab.active { background: var(--surface); color: var(--accent); }
+
+  .field-row { display: flex; gap: 10px; margin-bottom: 6px; }
+  label {
+    display: block; font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.03em;
+    color: var(--text-tertiary); text-transform: uppercase; margin-bottom: 7px;
+  }
+  .field { flex: 1; }
+  .field.amount { flex: 0 0 130px; }
+
+  input[type="text"], input[type="number"] {
+    width: 100%;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface-2);
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  }
+  input::placeholder { color: var(--text-tertiary); }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+
+  .hint { font-size: 12px; color: var(--text-tertiary); margin: 9px 0 20px; }
+
+  button.submit {
+    width: 100%; background: var(--accent); color: #0A0B0D;
+    border: none; border-radius: 8px; padding: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13.5px; font-weight: 700; letter-spacing: 0.02em;
+    cursor: pointer; transition: background 0.15s ease;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  button.submit:hover { background: var(--accent-hover); }
+  button.submit:disabled { background: var(--surface-2); color: var(--text-tertiary); cursor: default; }
+
+  .spinner {
+    width: 12px; height: 12px;
+    border: 2px solid rgba(141,148,160,0.3);
+    border-top-color: var(--text-secondary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: none;
+  }
+  button.submit:disabled .spinner { display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  #result-wrap { margin-top: 20px; }
+  .result-panel { border-radius: 10px; padding: 16px 18px; font-size: 14px; display: none; }
+  .result-panel.show { display: block; }
+  .result-panel.ok { background: var(--closed-bg); border: 1px solid var(--closed-border); }
+  .result-panel.err { background: var(--open-bg); border: 1px solid var(--open-border); }
+
+  .result-meta {
+    display: flex; gap: 14px; margin-bottom: 12px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-secondary);
+  }
+  .result-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; margin-bottom: 10px;
+  }
+  .result-panel.ok .result-title { color: var(--closed); }
+  .result-panel.err .result-title { color: var(--open); }
+
+  .kv-row {
+    display: flex; justify-content: space-between; padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-family: 'IBM Plex Mono', monospace; font-size: 13px;
+  }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-row .k { color: var(--text-secondary); }
+  .kv-row .v { font-weight: 600; color: var(--text-primary); }
+  .err-message { font-family: 'IBM Plex Mono', monospace; font-size: 13px; color: #FFC9C9; }
+
+  .raw-toggle { margin-top: 12px; }
+  .raw-toggle summary {
+    font-family: 'IBM Plex Mono', monospace; font-size: 11px; font-weight: 600;
+    color: var(--text-secondary); cursor: pointer; user-select: none;
+  }
+  .raw-toggle pre {
+    margin: 8px 0 0; padding: 10px 12px;
+    background: rgba(255,255,255,0.04); border-radius: 6px;
+    font-family: 'IBM Plex Mono', monospace; font-size: 11.5px;
+    color: var(--text-secondary);
+    overflow-x: auto; white-space: pre-wrap; word-break: break-all;
+  }
+
+  /* ---- Activity log ---- */
+  .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+  .log-clear {
+    font-family: 'IBM Plex Mono', monospace; font-size: 10.5px; color: var(--text-tertiary);
+    background: none; border: none; cursor: pointer; padding: 0;
+  }
+  .log-clear:hover { color: var(--text-secondary); }
+  .log-list { display: flex; flex-direction: column; max-height: 220px; overflow-y: auto; }
+  .log-empty { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--text-tertiary); padding: 6px 0; }
+  .log-entry {
+    display: grid; grid-template-columns: 62px 76px 1fr 56px 44px;
+    gap: 10px; align-items: center; padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-family: 'IBM Plex Mono', monospace; font-size: 11.5px;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-entry .time { color: var(--text-tertiary); }
+  .log-entry .svc { color: var(--text-secondary); font-weight: 600; }
+  .log-entry .idval { color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .log-entry .lat { color: var(--text-tertiary); text-align: right; }
+  .log-entry .badge {
+    justify-self: end; font-size: 9.5px; font-weight: 700;
+    padding: 2px 6px; border-radius: 4px; letter-spacing: 0.02em;
+  }
+  .log-entry .badge.ok { background: var(--closed-bg); color: var(--closed); }
+  .log-entry .badge.fail { background: var(--open-bg); color: var(--open); }
+
+  footer { text-align: center; font-size: 11.5px; color: var(--text-tertiary); margin-top: 6px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="brand-mark">R</span>
+      <span class="brand-name">RESILIENCE CONSOLE</span>
+    </div>
+    <div class="topbar-right">
+      <span class="env-tag">LOCAL · DEV</span>
+      <span class="clock" id="clock">00:00:00</span>
+    </div>
+  </div>
+
+  <div class="page-header">
+    <h1>Gateway Resilience Console</h1>
+    <p class="subtitle">Live view into the product, customer, inventory, and payment services behind the gateway — every call wrapped in Timeout, Retry, and Circuit Breaker protection.</p>
+  </div>
+
+  <div class="card">
+    <div class="card-label">System topology</div>
+    <div class="topology" id="topology">
+      <svg class="topo-svg" id="topoSvg"></svg>
+
+      <div class="topo-gw" id="gw-wrap">
+        <div class="topo-node gw">GW</div>
+        <div class="topo-label"><span class="name">Gateway</span></div>
+      </div>
+
+      <div class="topo-right">
+        <div class="topo-node-wrap state-unknown" id="node-product">
+          <div class="topo-node">PRD</div>
+          <div class="topo-label"><span class="name">Product</span><div class="state" data-role="state">—</div></div>
+        </div>
+        <div class="topo-node-wrap state-unknown" id="node-customer">
+          <div class="topo-node">CUS</div>
+          <div class="topo-label"><span class="name">Customer</span><div class="state" data-role="state">—</div></div>
+        </div>
+        <div class="topo-node-wrap state-unknown" id="node-inventory">
+          <div class="topo-node">INV</div>
+          <div class="topo-label"><span class="name">Inventory</span><div class="state" data-role="state">—</div></div>
+        </div>
+        <div class="topo-node-wrap state-unknown" id="node-payment">
+          <div class="topo-node">PAY</div>
+          <div class="topo-label"><span class="name">Payment</span><div class="state" data-role="state">—</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs" id="tabs">
+      <div class="tab active" data-type="product">Product</div>
+      <div class="tab" data-type="customer">Customer</div>
+      <div class="tab" data-type="inventory">Inventory</div>
+      <div class="tab" data-type="payment">Payment</div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label id="idLabel">Product ID</label>
+        <input type="text" id="identifier" placeholder="P001">
+      </div>
+      <div class="field amount" id="amountField" style="display:none;">
+        <label>Amount</label>
+        <input type="number" id="paymentAmount" placeholder="500">
+      </div>
+    </div>
+    <div class="hint" id="hintText">Try P001–P004</div>
+
+    <button class="submit" id="submitBtn" onclick="submitLookup()">
+      <span class="spinner"></span>
+      <span class="btn-text">Submit request</span>
+    </button>
+
+    <div id="result-wrap">
+      <div class="result-panel" id="resultPanel"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="log-header">
+      <div class="card-label" style="margin:0;">Activity log</div>
+      <button class="log-clear" onclick="clearLog()">Clear</button>
+    </div>
+    <div class="log-list" id="logList">
+      <div class="log-empty">No requests yet this session.</div>
+    </div>
+  </div>
+
+  <footer>gateway → gRPC · timeout 3s · retry ×3 backoff · breaker trips after 3 consecutive failures</footer>
+</div>
+
+<script>
+  const hints = {
+    product: 'Try P001–P004',
+    customer: 'Try C001–C003',
+    inventory: 'Try P001–P004 (stock levels)',
+    payment: 'Enter any order ID and an amount greater than 0'
+  };
+  const labels = {
+    product: 'Product ID', customer: 'Customer ID',
+    inventory: 'Product ID', payment: 'Order ID'
+  };
+  let currentType = 'product';
+  const log = [];
+  const streaks = { product: 0, customer: 0, inventory: 0, payment: 0 };
+  const services = ['product', 'customer', 'inventory', 'payment'];
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentType = tab.dataset.type;
+      document.getElementById('idLabel').textContent = labels[currentType];
+      document.getElementById('hintText').textContent = hints[currentType];
+      document.getElementById('amountField').style.display = currentType === 'payment' ? 'block' : 'none';
+      document.getElementById('identifier').value = '';
+      document.getElementById('paymentAmount').value = '';
+      hideResult();
+    });
+  });
+
+  function hideResult() {
+    const panel = document.getElementById('resultPanel');
+    panel.className = 'result-panel';
+    panel.innerHTML = '';
+  }
+
+  function makeRequestId() { return 'req_' + Math.random().toString(16).slice(2, 10); }
+
+  function renderMeta(reqId, latencyMs) {
+    return `<div class="result-meta">
+      <span>id · ${reqId}</span><span>latency · ${latencyMs}ms</span>
+      <span>${new Date().toLocaleTimeString()}</span>
+    </div>`;
+  }
+
+  function renderSuccess(data, reqId, latencyMs) {
+    const panel = document.getElementById('resultPanel');
+    panel.className = 'result-panel ok show';
+    let rows = Object.entries(data).map(([k, v]) =>
+      `<div class="kv-row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('');
+    panel.innerHTML = `<div class="result-title">Response received</div>${renderMeta(reqId, latencyMs)}${rows}
+      <details class="raw-toggle"><summary>View raw JSON</summary><pre>${JSON.stringify(data, null, 2)}</pre></details>`;
+  }
+
+  function renderError(message, reqId, latencyMs, raw) {
+    const panel = document.getElementById('resultPanel');
+    panel.className = 'result-panel err show';
+    panel.innerHTML = `<div class="result-title">Request failed</div>${renderMeta(reqId, latencyMs)}<div class="err-message">${message}</div>
+      ${raw ? `<details class="raw-toggle"><summary>View raw JSON</summary><pre>${JSON.stringify(raw, null, 2)}</pre></details>` : ''}`;
+  }
+
+  function pushLog(entry) {
+    log.unshift(entry);
+    if (log.length > 30) log.pop();
+    renderLog();
+  }
+
+  function renderLog() {
+    const list = document.getElementById('logList');
+    if (log.length === 0) { list.innerHTML = '<div class="log-empty">No requests yet this session.</div>'; return; }
+    list.innerHTML = log.map(e => `
+      <div class="log-entry">
+        <span class="time">${e.time}</span><span class="svc">${e.svc}</span>
+        <span class="idval">${e.idLabel}</span><span class="lat">${e.latency}ms</span>
+        <span class="badge ${e.ok ? 'ok' : 'fail'}">${e.ok ? 'OK' : 'FAIL'}</span>
+      </div>`).join('');
+  }
+
+  function clearLog() { log.length = 0; renderLog(); }
+
+  // ---- Topology line drawing (computed from real element positions) ----
+  function drawTopology() {
+    const container = document.getElementById('topology');
+    const svg = document.getElementById('topoSvg');
+    const containerRect = container.getBoundingClientRect();
+
+    svg.setAttribute('width', containerRect.width);
+    svg.setAttribute('height', containerRect.height);
+    svg.setAttribute('viewBox', `0 0 ${containerRect.width} ${containerRect.height}`);
+    svg.innerHTML = '';
+
+    const gwNode = document.querySelector('#gw-wrap .topo-node');
+    const gwRect = gwNode.getBoundingClientRect();
+    const gx = gwRect.left + gwRect.width / 2 - containerRect.left;
+    const gy = gwRect.top + gwRect.height / 2 - containerRect.top;
+
+    services.forEach(svc => {
+      const node = document.querySelector(`#node-${svc} .topo-node`);
+      const r = node.getBoundingClientRect();
+      const nx = r.left + r.width / 2 - containerRect.left;
+      const ny = r.top + r.height / 2 - containerRect.top;
+
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', gx);
+      line.setAttribute('y1', gy);
+      line.setAttribute('x2', nx);
+      line.setAttribute('y2', ny);
+      line.setAttribute('class', 'topo-line');
+      line.setAttribute('id', 'line-' + svc);
+      svg.appendChild(line);
+    });
+  }
+
+  function setTopoActive(type, on) {
+    document.getElementById('line-' + type)?.classList.toggle('active', on);
+    document.getElementById('node-' + type)?.classList.toggle('active', on);
+    document.getElementById('gw-wrap')?.classList.toggle('active', on);
+  }
+
+  function flashTopo(type, ok) {
+    const line = document.getElementById('line-' + type);
+    const node = document.getElementById('node-' + type);
+    line.classList.add(ok ? 'result-ok' : 'result-fail');
+    node.classList.add(ok ? 'flash-ok' : 'flash-fail');
+    setTimeout(() => {
+      line.classList.remove('result-ok', 'result-fail');
+      node.classList.remove('flash-ok', 'flash-fail');
+    }, 900);
+  }
+
+  async function submitLookup() {
+    const id = document.getElementById('identifier').value;
+    const btn = document.getElementById('submitBtn');
+    const btnText = btn.querySelector('.btn-text');
+    btn.disabled = true;
+    btnText.textContent = 'Sending…';
+    hideResult();
+    setTopoActive(currentType, true);
+
+    const reqId = makeRequestId();
+    const started = performance.now();
+
+    try {
+      let res;
+      if (currentType === 'payment') {
+        const amount = parseFloat(document.getElementById('paymentAmount').value);
+        res = await fetch('/api/payments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId: id, amount: amount })
+        });
+      } else {
+        const endpoint = { product: '/api/products', customer: '/api/customers', inventory: '/api/inventory' }[currentType];
+        res = await fetch(endpoint + '?id=' + encodeURIComponent(id));
+      }
+
+      const latency = Math.round(performance.now() - started);
+      const data = await res.json();
+
+      if (!res.ok) {
+        renderError(data.error || 'Unknown error', reqId, latency, data);
+        streaks[currentType]++;
+        pushLog({ time: new Date().toLocaleTimeString(), svc: currentType, idLabel: id || '(empty)', latency, ok: false });
+        flashTopo(currentType, false);
+      } else {
+        renderSuccess(data, reqId, latency);
+        streaks[currentType] = 0;
+        pushLog({ time: new Date().toLocaleTimeString(), svc: currentType, idLabel: id || '(empty)', latency, ok: true });
+        flashTopo(currentType, true);
+      }
+    } catch (err) {
+      const latency = Math.round(performance.now() - started);
+      renderError('Could not reach the gateway. Is it running on port 8080?', reqId, latency, null);
+      streaks[currentType]++;
+      pushLog({ time: new Date().toLocaleTimeString(), svc: currentType, idLabel: id || '(empty)', latency, ok: false });
+      flashTopo(currentType, false);
+    } finally {
+      setTopoActive(currentType, false);
+      btn.disabled = false;
+      btnText.textContent = 'Submit request';
+      refreshStatus();
+    }
+  }
+
+  function tickClock() {
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  }
+
+  async function refreshStatus() {
+    try {
+      const res = await fetch('/api/status');
+      const states = await res.json();
+      Object.entries(states).forEach(([svc, state]) => {
+        const wrap = document.getElementById('node-' + svc);
+        if (!wrap) return;
+        wrap.classList.remove('state-closed', 'state-open', 'state-halfopen', 'state-unknown');
+        const cls = 'state-' + state.toLowerCase().replace('-', '');
+        wrap.classList.add(cls);
+        const stateEl = wrap.querySelector('[data-role="state"]');
+        const upper = state.toUpperCase();
+        if (upper === 'OPEN') {
+          stateEl.textContent = 'OPEN · blocking'; stateEl.className = 'state bad';
+        } else if (upper === 'HALF-OPEN' || upper === 'HALFOPEN') {
+          stateEl.textContent = 'HALF-OPEN'; stateEl.className = 'state warn';
+        } else if (streaks[svc] > 0) {
+          stateEl.textContent = `${streaks[svc]} recent fail${streaks[svc] > 1 ? 's' : ''}`; stateEl.className = 'state warn';
+        } else {
+          stateEl.textContent = 'CLOSED'; stateEl.className = 'state good';
+        }
+      });
+    } catch (e) {
+      // gateway not reachable yet
+    }
+  }
+
+  window.addEventListener('load', drawTopology);
+  window.addEventListener('resize', drawTopology);
+  tickClock();
+  setInterval(tickClock, 1000);
+  refreshStatus();
+  setInterval(refreshStatus, 2000);
+</script>
+</body>
+</html>

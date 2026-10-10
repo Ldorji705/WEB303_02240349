@@ -1,0 +1,117 @@
+
+services:
+  product-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: products
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${PRODUCT_DB_PASSWORD:-postgres}
+    ports:
+      - "5433:5432"
+    volumes:
+      - product_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d products"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  product-service:
+    build:
+      context: .
+      dockerfile: product-service/Dockerfile
+    environment:
+      PORT: "50051"
+      DB_HOST: product-db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: ${PRODUCT_DB_PASSWORD:-postgres}
+      DB_NAME: products
+    ports:
+      - "50051:50051"
+    depends_on:
+      product-db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  order-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${ORDER_DB_PASSWORD:-postgres}
+    ports:
+      - "5434:5432"
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orders"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  order-service:
+    build:
+      context: .
+      dockerfile: order-service/Dockerfile
+    environment:
+      PORT: "50052"
+      DB_HOST: order-db
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: ${ORDER_DB_PASSWORD:-postgres}
+      DB_NAME: orders
+      PRODUCT_SERVICE_ADDR: product-service:50051
+    ports:
+      - "50052:50052"
+    depends_on:
+      order-db:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    restart: unless-stopped
+
+  customer-service:
+    build:
+      context: .
+      dockerfile: customer-service/Dockerfile
+    restart: unless-stopped
+
+  inventory-service:
+    build:
+      context: .
+      dockerfile: inventory-service/Dockerfile
+    restart: unless-stopped
+
+  payment-service:
+    build:
+      context: .
+      dockerfile: payment-service/Dockerfile
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: api-gateway/Dockerfile
+    environment:
+      GATEWAY_PORT: "8080"
+      PRODUCT_SERVICE_ADDR: product-service:50051
+      ORDER_SERVICE_ADDR: order-service:50052
+      CUSTOMER_SERVICE_ADDR: customer-service:50052
+      INVENTORY_SERVICE_ADDR: inventory-service:50053
+      PAYMENT_SERVICE_ADDR: payment-service:50054
+    ports:
+      - "8080:8080"
+    depends_on:
+      - product-service
+      - order-service
+      - customer-service
+      - inventory-service
+      - payment-service
+    restart: unless-stopped
+
+volumes:
+  product_db_data:
+  order_db_data:

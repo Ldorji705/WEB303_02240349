@@ -1,0 +1,310 @@
+{
+  "info": {
+    "name": "Ecommerce Microservices - API Gateway",
+    "description": "Postman collection for the ecommerce-microservices project. Send requests only to the REST API Gateway. Start the stack from the repository root with docker compose up --build. Set baseUrl to http://localhost:8080 if needed.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "productId",
+      "value": "P501"
+    },
+    {
+      "key": "orderId",
+      "value": "ORD501"
+    }
+  ],
+  "item": [
+    {
+      "name": "Products CRUD",
+      "item": [
+        {
+          "name": "1 - Create product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"name\": \"Postman Test Keyboard\",\n  \"price\": 2500\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Run first. Expected 201 Created. If this ID already exists, change the collection variable productId to a new ID."
+          }
+        },
+        {
+          "name": "2 - Get product by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}"
+            },
+            "description": "Expected 200 OK after creating the product."
+          }
+        },
+        {
+          "name": "3 - List products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products"
+            },
+            "description": "Expected 200 OK with the product list."
+          }
+        },
+        {
+          "name": "4 - Update product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Postman Keyboard\",\n  \"price\": 3000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Run after Create. Expected 200 OK."
+          }
+        },
+        {
+          "name": "5 - Delete product",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}"
+            },
+            "description": "Run last in the product CRUD sequence. Expected successful delete response."
+          }
+        },
+        {
+          "name": "Error - missing product",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/products/DOES_NOT_EXIST"
+            },
+            "description": "Expected 404 Not Found."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders CRUD",
+      "item": [
+        {
+          "name": "1 - Create order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"{{orderId}}\",\n  \"productId\": \"P001\",\n  \"quantity\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Run first. P001 is the Laptop in the current product catalog. Expected 201 Created. If this order ID exists already, change the collection variable orderId."
+          }
+        },
+        {
+          "name": "2 - Get order by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}"
+            },
+            "description": "Expected 200 OK after creating the order."
+          }
+        },
+        {
+          "name": "3 - List orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders"
+            },
+            "description": "Expected 200 OK with the order list."
+          }
+        },
+        {
+          "name": "4 - Update order",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": \"P001\",\n  \"quantity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Run after Create. Expected 200 OK."
+          }
+        },
+        {
+          "name": "5 - Delete order",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}"
+            },
+            "description": "Run last in the order CRUD sequence. Expected successful delete response."
+          }
+        },
+        {
+          "name": "Error - missing order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/DOES_NOT_EXIST"
+            },
+            "description": "Expected 404 Not Found."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customer (supporting service)",
+      "item": [
+        {
+          "name": "Get customer C001",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers?id=C001"
+            },
+            "description": "Expected 200 OK. Uses the id query parameter."
+          }
+        },
+        {
+          "name": "Error - missing customer C999",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/customers?id=C999"
+            },
+            "description": "Expected 404 Not Found."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory (supporting service)",
+      "item": [
+        {
+          "name": "Check stock for P001",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/inventory?id=P001"
+            },
+            "description": "Expected 200 OK with initial stock quantity 10, if stock has not been reduced."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments (supporting service)",
+      "item": [
+        {
+          "name": "Process payment",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/payments"
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"orderId\": \"ORD501\",\n  \"amount\": 150000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Expected 200 OK and status SUCCESS in the current payment handler. Use a unique order ID if required."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gateway",
+      "item": [
+        {
+          "name": "Gateway status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/status"
+            },
+            "description": "Call the gateway status endpoint and record the actual response for your report."
+          }
+        }
+      ]
+    }
+  ]
+}
